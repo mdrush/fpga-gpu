@@ -1,13 +1,13 @@
 `timescale 1ns / 1ps
 
-module gpu(clk, reset, addr, dout, wen, done);
+module gpu(clk, reset, start, addr, dout, wen, done);
 
-input clk, reset;
+input clk, reset, start;
 reg [1:0] state;
 output reg done;
 // reg [7:0] mem [0:640*480]; 
-output reg [18:0] addr;
-output reg [7:0] dout;
+output wire [18:0] addr;
+output reg [5:0] dout;
 output reg wen;
 
 reg [9:0] xmaxf, ymaxf, xminf, yminf, x, y;
@@ -27,14 +27,24 @@ localparam INIT = 2'b00;
 localparam DRAW = 2'b01;
 localparam DONE = 2'b11;
 
-always@ (posedge clk, posedge reset)
+assign addr = 640*y+x;
+
+always@ (posedge clk)
 begin
-	if (reset)
+	if (reset) begin
 		state <= INIT;
+				xmaxf <= 10'bx;
+				ymaxf <= 10'bx;
+				xminf <= 10'bx;
+				yminf <= 10'bx;
+
+				x <= 10'bx;
+				y <= 10'bx;
+	end
 	else begin
 		case (state)
 			INIT : begin : minmax
-				reg [9:0] xmax, ymax, xmin, ymin;
+/*				reg [9:0] xmax, ymax, xmin, ymin;
 
 				xmax = v0[19:10];
 				if (xmax < v1[19:10])
@@ -66,35 +76,35 @@ begin
 				yminf <= ymin;
 
 				x <= xmin;
-				y <= ymin;
+				y <= ymin;*/
 
-			/*xmaxf <= 639;
+			xmaxf <= 639;
 				ymaxf <= 479;
 				xminf <= 0;
 				yminf <= 0;
 
 				x <= 0;
-				y <= 0;*/
+				y <= 0;
 
-				state <= DRAW;
+				
 				done <= 0;
 				
-
-
+				if (start)
+					state <= DRAW;
 			end
 
 			DRAW : begin
 				// FIXME: use tiling instead
-				if (edgeout == 3'b111) begin
-					wen <= 1;
-					dout <= 8'b11111111;
+				if (edgeout == 3'b000) begin
+					wen <= 1'b1;
+					dout <= 6'b111111;
 				end
-				else
-					wen <= 0;
-		
+				else begin
+					wen <= 1'b0;
+					dout <= 6'b110011;
+				end
 				if (y < ymaxf) begin
 					if (x < xmaxf) begin
-						addr = 640*y+x;
 						x <= x + 1;
 					end
 					else begin
@@ -103,8 +113,9 @@ begin
 					end
 				end
 				else begin
-					wen <= 0;
+					wen <= 1'b0;
 					state <= DONE;
+					dout <= 6'b001100;
 				end
 
 			end

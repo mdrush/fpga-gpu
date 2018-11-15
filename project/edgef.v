@@ -7,7 +7,6 @@ module edgef(v0, v1, px, py, out);
 	wire signed [11:0] dX, dY, t1, t2;
 	wire signed [23:0] o1, o2;
 
-
 	assign dX = v1[19:10] - v0[19:10];
 	assign dY = v1[9:0] - v0[9:0];
 

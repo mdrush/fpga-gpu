@@ -4,7 +4,7 @@ module ppm_gen();
 
 reg reset_tb, clk_tb;
 
-reg [7:0] mem [0:640*480]; 
+reg [5:0] mem [0:640*480]; 
 
 reg [9:0] I, J;
 reg [9:0] i, j;

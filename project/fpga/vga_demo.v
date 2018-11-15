@@ -3,16 +3,17 @@
 // VGA verilog template
 // Author:  Da Cheng
 //////////////////////////////////////////////////////////////////////////////////
-module vga_demo(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1, btnU, btnD,
+module vga_demo(ClkPort, vga_h_sync, vga_v_sync, vgaRed, vgaGreen, vgaBlue, Sw0, Sw1, btnU, btnD,
 	St_ce_bar, St_rp_bar, Mt_ce_bar, Mt_St_oe_bar, Mt_St_we_bar,
 	An0, An1, An2, An3, Ca, Cb, Cc, Cd, Ce, Cf, Cg, Dp,
 	LD0, LD1, LD2, LD3, LD4, LD5, LD6, LD7);
 	input ClkPort, Sw0, btnU, btnD, Sw0, Sw1;
 	output St_ce_bar, St_rp_bar, Mt_ce_bar, Mt_St_oe_bar, Mt_St_we_bar;
-	output vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b;
+	output vga_h_sync, vga_v_sync;
 	output An0, An1, An2, An3, Ca, Cb, Cc, Cd, Ce, Cf, Cg, Dp;
 	output LD0, LD1, LD2, LD3, LD4, LD5, LD6, LD7;
-	reg vga_r, vga_g, vga_b;
+	output reg [2:0] vgaRed, vgaGreen;
+	output reg [1:0] vgaBlue;
 	
 	//////////////////////////////////////////////////////////////////////////////////////////
 	
@@ -42,21 +43,35 @@ module vga_demo(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1, 
 
 	hvsync_generator syncgen(.clk(clk), .reset(reset),.vga_h_sync(vga_h_sync), .vga_v_sync(vga_v_sync), .inDisplayArea(inDisplayArea), .CounterX(CounterX), .CounterY(CounterY));
 	
-
-
-	reg [7:0] mem [0:640*480]; 
-
 	wire wen;
 	wire [18:0] addr_gpu;
-	wire [7:0] dout_gpu;
-	gpu gpu0(.clk(clk), .reset(reset), .addr(addr_gpu), .dout(dout_gpu), .wen(wen));
+	wire [5:0] dout_gpu;
+	wire [5:0] doutb;
+	gpu gpu0(.clk(clk), .reset(reset), .start(start), .addr(addr_gpu), .dout(dout_gpu), .wen(wen));
+	
+	wire [18:0] addrb;
+	assign addrb = 640*CounterY+CounterX;
+	
+	blk_mem_gen_v7_3 mem(
+	  .clka(clk),
+	  .wea(wen),
+	  .addra(addr_gpu),
+	  .dina(dout_gpu),
+	  .clkb(clk),
+	  .enb(inDisplayArea),
+	  .addrb(addrb),
+	  .doutb(doutb)
+	);
+	//reg [4:0] mem [0:640*480]; 
 
-	always@ (posedge clk)
+
+
+/*	always@ (posedge clk)
 	begin
 		if (wen)
-			mem[addr_gpu] = dout_tb;
+			mem[addr_gpu] = dout_gpu;
 	end
-
+*/
 
 
 
@@ -81,16 +96,16 @@ module vga_demo(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1, 
 	//wire R = CounterY>=(position-10) && CounterY<=(position+10) && CounterX[8:5]==7;
 	//wire G = CounterX>100 && CounterX<200 && CounterY[5:3]==7;
 	//wire B = 0;
-	wire R = mem[640*CounterY+CounterX][7:5];	
-	wire G = mem[640*CounterY+CounterX][4:2];	
-	wire B = mem[640*CounterY+CounterX][1:0];	
+	wire [2:0] R = {doutb[5:4], 1'b0};	
+	wire [2:0] G = {doutb[3:2], 1'b0};	
+	wire [1:0] B = doutb[1:0];	
 
 
 	always @(posedge clk)
 	begin
-		vga_r <= R & inDisplayArea;
-		vga_g <= G & inDisplayArea;
-		vga_b <= B & inDisplayArea;
+		vgaRed <= R & {3{inDisplayArea}};
+		vgaGreen <= G & {3{inDisplayArea}};
+		vgaBlue <= B & {2{inDisplayArea}};
 	end
 	
 	/////////////////////////////////////////////////////////////////
