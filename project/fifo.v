@@ -9,7 +9,7 @@ parameter FIFO_DEPTH = 1 << ADDR_WIDTH;
 
 input clk, reset, wen, ren;
 input [DATA_WIDTH-1:0] write_data;
-output reg [DATA_WIDTH-1:0] read_data;
+output [DATA_WIDTH-1:0] read_data;
 
 // dual port RAM
 reg [DATA_WIDTH-1:0] mem [0:FIFO_DEPTH-1];
@@ -29,6 +29,8 @@ assign full = eq & almost_full;
 output reg almost_full;
 output reg almost_empty;
 
+assign read_data = mem[read_address];
+
 always @(posedge clk)
 begin
 
@@ -45,7 +47,6 @@ begin
 			write_address <= write_address + 1'b1;
 		end
 		if (renq) begin
-			read_data <= mem[read_address];
 			read_address <= read_address + 1'b1;
 		end
 
