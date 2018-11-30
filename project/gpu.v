@@ -5,7 +5,8 @@ module gpu(clk, reset, start, addr, dout, wen, done, empty, ren, read_data);
 input clk, reset, start, empty;
 input [65:0] read_data;
 reg [2:0] state;
-output reg done, ren;
+output reg ren;
+output done;
 // reg [7:0] mem [0:640*480]; 
 output wire [18:0] addr;
 output reg [5:0] dout;
@@ -56,6 +57,7 @@ localparam DRAW = 3'b001;
 localparam DONE = 3'b011;
 
 assign addr = 640*y+x;
+assign done = (state == DONE);
 
 always@ (posedge clk)
 begin
@@ -66,13 +68,12 @@ begin
 				xminf <= 10'bx;
 				yminf <= 10'bx;
 
-				x <= 10'bx;
-				y <= 10'bx;
+				x <= 10'b0;
+				y <= 10'b0;
 	end
 	else begin
 		case (state)
 			LOAD : begin
-				done <= 0;
 				ren <= 1;
 				if (!empty)
 					state <= LOAD2;
@@ -81,10 +82,10 @@ begin
 			LOAD2 : begin
 				{v0, v1, v2, color} = read_data[65:0];
 				ren <= 0;
-				if (!empty)
+				//if (!empty)
 					state <= INIT;
-				else
-					state <= LOAD;
+				//else
+				//	state <= LOAD;
 			end
 
 			INIT : begin : minmax
@@ -104,8 +105,6 @@ begin
 				x <= 0;
 				y <= 0;
 */
-
-				done <= 0;
 				
 				state <= DRAW;
 			end
@@ -118,8 +117,8 @@ begin
 					wen <= 1;
 					dout <= color;
 				end
-				if (y < ymaxf) begin
-					if (x < xmaxf) begin
+				if ((y < ymaxf) && (y < 10'd480)) begin
+					if ((x < xmaxf) && (x < 10'd640)) begin
 						x <= x + 1;
 					end
 					else begin
@@ -129,6 +128,8 @@ begin
 				end
 				else begin
 					state <= DONE;
+					x <= 0;
+					y <= 0;
 					if (!empty) begin
 						state <= LOAD;
 					end
@@ -137,8 +138,26 @@ begin
 			end
 
 			DONE : begin
-				done <= 1;
+				if (start)
 					state <= LOAD;
+				// if fifo has data and not finished clearing screen
+				if (!empty && (y < 10'd480)) begin
+					wen <= 1;
+					dout <= 6'b000000;	
+					if (y < 10'd480) begin
+						if (x < 10'd640) begin
+							x <= x + 1;
+						end
+						else begin
+							x <= 0;
+							y <= y + 1;
+						end
+					end
+				end
+				// if fifo has data and screen is clear
+				if (!empty && (y == 10'd480)) begin
+					state <= LOAD;
+				end
 			end
 
 		endcase

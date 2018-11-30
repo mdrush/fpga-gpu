@@ -3,11 +3,11 @@
 // VGA verilog template
 // Author:  Da Cheng
 //////////////////////////////////////////////////////////////////////////////////
-module vga_demo(ClkPort, vga_h_sync, vga_v_sync, vgaRed, vgaGreen, vgaBlue, Sw0, Sw1, btnU, btnD,
+module vga_demo(ClkPort, vga_h_sync, vga_v_sync, vgaRed, vgaGreen, vgaBlue, Sw0, Sw1, btnU, btnD, btnC, btnL, btnR,
 	St_ce_bar, St_rp_bar, Mt_ce_bar, Mt_St_oe_bar, Mt_St_we_bar,
 	An0, An1, An2, An3, Ca, Cb, Cc, Cd, Ce, Cf, Cg, Dp,
 	LD0, LD1, LD2, LD3, LD4, LD5, LD6, LD7);
-	input ClkPort, Sw0, btnU, btnD, Sw0, Sw1;
+	input ClkPort, btnU, btnD, btnC, btnL, btnR, Sw0, Sw1;
 	output St_ce_bar, St_rp_bar, Mt_ce_bar, Mt_St_oe_bar, Mt_St_we_bar;
 	output vga_h_sync, vga_v_sync;
 	output An0, An1, An2, An3, Ca, Cb, Cc, Cd, Ce, Cf, Cg, Dp;
@@ -33,7 +33,24 @@ module vga_demo(ClkPort, vga_h_sync, vga_v_sync, vgaRed, vgaGreen, vgaBlue, Sw0,
 			DIV_CLK <= DIV_CLK + 1'b1;
 	end	
 
-	assign	button_clk = DIV_CLK[18];
+	reg signed [9:0] posy, posx;
+	always @(posedge button_clk)
+	begin
+		if(reset) begin
+			posy <= 1;
+			posx <= 1;
+		end
+		else if(btnD && ~btnU)
+			posy<=posy+1;
+		else if(btnU && ~btnD)
+			posy<=posy-1;	
+		else if(btnR && ~btnL)
+			posx<=posx+1;
+		else if(btnL && ~btnR)
+			posx<=posx-1;	
+	end
+
+	assign	button_clk = DIV_CLK[24];
 	assign	clk = DIV_CLK[1];
 	assign 	{St_ce_bar, St_rp_bar, Mt_ce_bar, Mt_St_oe_bar, Mt_St_we_bar} = {5'b11111};
 	
@@ -43,11 +60,40 @@ module vga_demo(ClkPort, vga_h_sync, vga_v_sync, vgaRed, vgaGreen, vgaBlue, Sw0,
 
 	hvsync_generator syncgen(.clk(clk), .reset(reset),.vga_h_sync(vga_h_sync), .vga_v_sync(vga_v_sync), .inDisplayArea(inDisplayArea), .CounterX(CounterX), .CounterY(CounterY));
 	
-	wire wen;
+	wire [65:0] read_data;
+	wire [65:0] write_data;
+	wire full, empty;
+	wire wen_fifo; 
+	wire ren_fifo;
+	wire [3:0] diff;
+
+	fifo #(66,4) fifo0(.clk(clk), 
+	.reset(reset), 
+	.wen(wen_fifo), 
+	.ren(ren_fifo), 
+	.full(full), 
+	.empty(empty), 
+	.write_data(write_data), 
+	.read_data(read_data),
+	.diff(diff)
+	);
+	
+	wire wen, done;
 	wire [18:0] addr_gpu;
 	wire [5:0] dout_gpu;
 	wire [5:0] doutb;
-	gpu gpu0(.clk(clk), .reset(reset), .start(start), .addr(addr_gpu), .dout(dout_gpu), .wen(wen));
+	gpu gpu0(.clk(clk), 
+	.reset(reset), 
+	.start(start), 
+	.addr(addr_gpu), 
+	.dout(dout_gpu), 
+	.wen(wen),
+	.done(done_gpu),
+	.empty(empty),
+	.ren(ren_fifo),
+	.read_data(read_data)
+	);
+	
 	
 	wire [18:0] addrb;
 	assign addrb = 640*CounterY+CounterX;
@@ -63,8 +109,18 @@ module vga_demo(ClkPort, vga_h_sync, vga_v_sync, vgaRed, vgaGreen, vgaBlue, Sw0,
 	  .doutb(doutb)
 	);
 	//reg [4:0] mem [0:640*480]; 
-
-
+	
+	wire [4:0] btns;
+	assign btns = {btnU, btnD, btnL, btnR, btnC};
+	game game0(.clk(clk), 
+	.reset(reset), 
+	.write_data(write_data), 
+	.wen(wen_fifo),
+	.btns(btns),
+	.empty(empty),
+	.posy(posy),
+	.posx(posx)
+	);
 
 /*	always@ (posedge clk)
 	begin
@@ -81,17 +137,6 @@ module vga_demo(ClkPort, vga_h_sync, vga_v_sync, vgaRed, vgaGreen, vgaBlue, Sw0,
 	/////////////////////////////////////////////////////////////////
 	///////////////		VGA control starts here		/////////////////
 	/////////////////////////////////////////////////////////////////
-	reg [9:0] position;
-	
-	always @(posedge DIV_CLK[21])
-		begin
-			if(reset)
-				position<=240;
-			else if(btnD && ~btnU)
-				position<=position+2;
-			else if(btnU && ~btnD)
-				position<=position-2;	
-		end
 
 	//wire R = CounterY>=(position-10) && CounterY<=(position+10) && CounterX[8:5]==7;
 	//wire G = CounterX>100 && CounterX<200 && CounterY[5:3]==7;
@@ -108,6 +153,10 @@ module vga_demo(ClkPort, vga_h_sync, vga_v_sync, vgaRed, vgaGreen, vgaBlue, Sw0,
 		vgaBlue <= B & {2{inDisplayArea}};
 	end
 	
+	assign LD0 = done_gpu;
+	assign LD1 = empty;
+	assign {LD2, LD3, LD4, LD5, LD6, LD7} = 0;
+	
 	/////////////////////////////////////////////////////////////////
 	//////////////  	  VGA control ends here 	 ///////////////////
 	/////////////////////////////////////////////////////////////////
@@ -115,7 +164,7 @@ module vga_demo(ClkPort, vga_h_sync, vga_v_sync, vgaRed, vgaGreen, vgaBlue, Sw0,
 	/////////////////////////////////////////////////////////////////
 	//////////////  	  LD control starts here 	 ///////////////////
 	/////////////////////////////////////////////////////////////////
-	`define QI 			2'b00
+/*	`define QI 			2'b00
 	`define QGAME_1 	2'b01
 	`define QGAME_2 	2'b10
 	`define QDONE 		2'b11
@@ -134,7 +183,7 @@ module vga_demo(ClkPort, vga_h_sync, vga_v_sync, vgaRed, vgaGreen, vgaBlue, Sw0,
 	assign LD3 = (state == `QI);
 	assign LD5 = (state == `QGAME_1);	
 	assign LD6 = (state == `QGAME_2);
-	assign LD7 = (state == `QDONE);
+	assign LD7 = (state == `QDONE);*/
 	
 	/////////////////////////////////////////////////////////////////
 	//////////////  	  LD control ends here 	 	////////////////////
@@ -150,7 +199,7 @@ module vga_demo(ClkPort, vga_h_sync, vga_v_sync, vgaRed, vgaGreen, vgaBlue, Sw0,
 	assign SSD3 = 4'b1111;
 	assign SSD2 = 4'b1111;
 	assign SSD1 = 4'b1111;
-	assign SSD0 = position[3:0];
+	assign SSD0 = diff;
 	
 	// need a scan clk for the seven segment display 
 	// 191Hz (50MHz / 2^18) works well
@@ -192,7 +241,12 @@ module vga_demo(ClkPort, vga_h_sync, vga_v_sync, vgaRed, vgaGreen, vgaBlue, Sw0,
 			4'b0111: SSD_CATHODES = 7'b0001111 ; //7
 			4'b1000: SSD_CATHODES = 7'b0000000 ; //8
 			4'b1001: SSD_CATHODES = 7'b0000100 ; //9
-			4'b1010: SSD_CATHODES = 7'b0001000 ; //10 or A
+			4'b1010: SSD_CATHODES = 7'b0001000; // A
+			4'b1011: SSD_CATHODES = 7'b1100000; // B
+			4'b1100: SSD_CATHODES = 7'b0110001; // C
+			4'b1101: SSD_CATHODES = 7'b1000010; // D
+			4'b1110: SSD_CATHODES = 7'b0110000; // E
+			4'b1111: SSD_CATHODES = 7'b0111000; // F 
 			default: SSD_CATHODES = 7'bXXXXXXX ; // default is not needed as we covered all cases
 		endcase
 	end

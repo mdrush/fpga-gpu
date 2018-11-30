@@ -1,8 +1,8 @@
 `timescale 1ns / 1ps
 
-module transform(x, y, z, w, sx, sy);
-	input [39:0] A0, A1, A2, A3;
+module transform(x, y, z, w, sx, sy, posy, posx);
 	input signed [9:0] x, y, z, w;
+	input signed [9:0] posy, posx;
 
 	wire signed [9:0] cx,cy,cz,cw;
 
@@ -18,8 +18,8 @@ module transform(x, y, z, w, sx, sy);
 	assign camz = 10'd4;
 
 	// combined transform matrix
-	assign a11 = 10'd1; assign a12 = 10'd0; assign a13 = 10'd0; assign a14 = 10'd1;
-	assign a21 = 10'd0; assign a22 = 10'd1; assign a23 = 10'd0; assign a24 = 10'd1;
+	assign a11 = 10'd1; assign a12 = 10'd0; assign a13 = 10'd0; assign a14 = posx;
+	assign a21 = 10'd0; assign a22 = 10'd1; assign a23 = 10'd0; assign a24 = posy;
 	assign a31 = 10'd0; assign a32 = 10'd0; assign a33 = -10'd1; assign a34 = camz;
 	assign a41 = 10'd0; assign a42 = 10'd0; assign a43 = -10'd1; assign a44 = camz;
 

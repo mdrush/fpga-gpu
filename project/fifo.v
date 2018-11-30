@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 // Verilog implementation of Gandhi Puvvada's Synchronous FIFO design
 
-module fifo(clk, reset, wen, ren, full, almost_full, empty, almost_empty, write_data, read_data);
+module fifo(clk, reset, wen, ren, full, almost_full, empty, almost_empty, write_data, read_data, diff);
 
 parameter DATA_WIDTH = 4;
 parameter ADDR_WIDTH = 3; // must be >= 3
@@ -10,6 +10,7 @@ parameter FIFO_DEPTH = 1 << ADDR_WIDTH;
 input clk, reset, wen, ren;
 input [DATA_WIDTH-1:0] write_data;
 output [DATA_WIDTH-1:0] read_data;
+output [3:0] diff;
 
 // dual port RAM
 reg [DATA_WIDTH-1:0] mem [0:FIFO_DEPTH-1];
