@@ -15,7 +15,7 @@ module edgef(v0, v1, px, py, out);
 
 	assign o1 = t1*dY;
 	assign o2 = t2*dX;
-	assign out = (o1 >= o2);
+	assign out = (o1 < o2);
 
 endmodule
 

@@ -114,7 +114,7 @@ begin
 				// FIXME: use tiling instead
 				ren <= 0;
 				wen <= 0;
-				if (edgeout == 3'b000) begin
+				if (edgeout == 3'b111) begin
 					wen <= 1;
 					dout <= color;
 				end

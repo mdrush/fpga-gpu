@@ -98,9 +98,37 @@ begin
 		mem[addr_tb] = dout_tb;
 end
 
+localparam INIT = 3'b000;
+localparam TX = 3'b001;
+localparam WAIT = 3'b011;
+reg [4*8:1] state_string;
+always @(game_uut.I) begin
+  case (game_uut.state)
+	INIT   :		state_string = "INIT";
+	TX  :		state_string = "TX  ";
+	WAIT  :		state_string = "WAIT";
+	default  : 	state_string = "unkn";
+  endcase
+
+	$write("I: %d\tState: %s\n", game_uut.I, state_string);
+	$write("(%d,%d,%d,%d)\t(%d,%d,%d,%d)\t(%d,%d,%d,%d)\n", 
+		game_uut.transform1.x, game_uut.transform1.y, game_uut.transform1.z, game_uut.transform1.w,
+		game_uut.transform2.x, game_uut.transform2.y, game_uut.transform2.z, game_uut.transform2.w,
+		game_uut.transform3.x, game_uut.transform3.y, game_uut.transform3.z, game_uut.transform3.w);
+	$write("(%d,%d,%d,%d)\t(%d,%d,%d,%d)\t(%d,%d,%d,%d)\n", 
+		game_uut.transform1.cx, game_uut.transform1.cy, game_uut.transform1.cz, game_uut.transform1.cw,
+		game_uut.transform2.cx, game_uut.transform2.cy, game_uut.transform2.cz, game_uut.transform2.cw,
+		game_uut.transform3.cx, game_uut.transform3.cy, game_uut.transform3.cz, game_uut.transform3.cw);
+	$write("(%d,%d)\t(%d,%d)\t(%d,%d)\n", 
+		game_uut.transform1.sx, game_uut.transform1.sy,
+		game_uut.transform2.sx, game_uut.transform2.sy,
+		game_uut.transform3.sx, game_uut.transform3.sy);
+end
+
 // APPLYING STIMULUS
 initial
 begin
+
 	start_tb=0;
   clk_tb=0;
 	reset_tb=1;
